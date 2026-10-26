@@ -1,0 +1,577 @@
+<title>Follow Up</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+  /* Layout: one horizontal row of narrow stacks; each stack is a column of cards, newest on top. */
+  :root {
+    --bg: #f6f5f1;
+    --surface: #ffffff;
+    --surface-2: #efede8;
+    --line: #dfdcd4;
+    --fg: #1f1e1b;
+    --fg-2: #6b685f;
+    --fg-3: #a19d92;
+    --accent: #1f6f6a;
+    --accent-soft: #d9ebe9;
+    --red: #b8372d;
+    --red-soft: #f6dedb;
+    --red-line: #e3a59f;
+    --shadow: 0 1px 2px rgba(30,28,20,.06), 0 6px 18px -8px rgba(30,28,20,.14);
+    --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --font-body: "Figtree", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #18181a; --surface: #222225; --surface-2: #2a2a2e; --line: #36363b;
+      --fg: #ebe9e3; --fg-2: #a3a09a; --fg-3: #6c6a66;
+      --accent: #4fb3ab; --accent-soft: #1d3634;
+      --red: #e0675b; --red-soft: #3b2220; --red-line: #6e3a35;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 20px -10px rgba(0,0,0,.6);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #18181a; --surface: #222225; --surface-2: #2a2a2e; --line: #36363b;
+    --fg: #ebe9e3; --fg-2: #a3a09a; --fg-3: #6c6a66;
+    --accent: #4fb3ab; --accent-soft: #1d3634;
+    --red: #e0675b; --red-soft: #3b2220; --red-line: #6e3a35;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 20px -10px rgba(0,0,0,.6);
+    color-scheme: dark;
+  }
+
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: var(--font-body); font-size: 15px; line-height: 1.45;
+    display: flex; flex-direction: column; overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+  button:focus-visible, [tabindex]:focus-visible, textarea:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  /* ---- header ---- */
+  header {
+    display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap;
+    padding-block: 18px 10px;
+    padding-left: max(24px, env(safe-area-inset-left, 0px));
+    padding-right: max(24px, env(safe-area-inset-right, 0px));
+  }
+  h1 {
+    margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 28px;
+    letter-spacing: -0.01em; line-height: 1; font-variation-settings: "opsz" 144;
+  }
+  h1 em { font-style: italic; color: var(--accent); }
+  .meta { color: var(--fg-2); font-size: 13px; display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+  .meta kbd {
+    font-family: var(--font-mono); font-size: 11px; padding: 1px 5px; border: 1px solid var(--line);
+    border-bottom-width: 2px; border-radius: 4px; color: var(--fg-2); background: var(--surface);
+  }
+  .spacer { flex: 1; }
+  .age-ctl { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--fg-2); }
+  .age-ctl input {
+    width: 3em; font: inherit; text-align: center; color: var(--fg); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 6px; padding: 2px 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .sweep {
+    font-size: 13px; color: var(--fg-2); padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px;
+    transition: color .15s, border-color .15s, background .15s;
+  }
+  .sweep:hover { color: var(--fg); border-color: var(--fg-3); }
+  .sweep.arm { color: var(--red); border-color: var(--red-line); background: var(--red-soft); }
+  .sweep[disabled] { opacity: .45; cursor: default; }
+
+  /* ---- board ---- */
+  #board {
+    flex: 1; min-height: 0; display: flex; gap: 18px; align-items: flex-start;
+    overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+    padding-block: 8px 28px;
+    padding-left: max(24px, env(safe-area-inset-left, 0px));
+    padding-right: max(24px, env(safe-area-inset-right, 0px));
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  }
+  .stack {
+    flex: 0 0 300px; max-width: calc(100vw - 48px); max-height: 100%;
+    display: flex; flex-direction: column; min-width: 0;
+    border-radius: 14px; background: var(--surface-2);
+    transition: box-shadow .15s;
+  }
+  .stack.over { box-shadow: inset 0 0 0 2px var(--accent); }
+  .stack-head {
+    display: flex; align-items: center; gap: 6px; padding: 10px 10px 6px 14px;
+  }
+  .stack-name {
+    flex: 1; min-width: 0; margin: 0; font-family: var(--font-display); font-size: 19px; font-weight: 600;
+    font-variation-settings: "opsz" 48; letter-spacing: -0.005em; line-height: 1.2;
+    padding: 2px 4px; margin-left: -4px; border-radius: 6px; border: 1px solid transparent;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: text;
+  }
+  .stack-name:focus { outline: none; border-color: var(--line); background: var(--surface); white-space: normal; overflow: visible; }
+  .stack-name:empty::before { content: "Name this stack"; color: var(--fg-3); }
+  .count { font-size: 12px; color: var(--fg-3); font-variant-numeric: tabular-nums; min-width: 1.4em; text-align: right; }
+  .ib {
+    width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px; color: var(--fg-2);
+    transition: background .12s, color .12s;
+  }
+  .ib:hover { background: var(--surface); color: var(--fg); }
+  .ib svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .ib.arm { color: var(--red); background: var(--red-soft); }
+
+  .items {
+    flex: 1; min-height: 44px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+    padding: 2px 10px 12px; scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  }
+  .items:empty { position: relative; }
+  .items:empty::after {
+    content: "Empty. Press n or + to push an item."; position: absolute; inset: 0;
+    display: grid; place-items: center; color: var(--fg-3); font-size: 13px; padding: 12px; text-align: center;
+  }
+
+  /* ---- item ---- */
+  .item {
+    position: relative; background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--line); box-shadow: var(--shadow);
+    transition: border-color .15s, opacity .2s, transform .12s;
+  }
+  .item.dragging { opacity: .35; }
+  .item.drop-before { box-shadow: 0 -2px 0 0 var(--accent), var(--shadow); }
+  .item.drop-after  { box-shadow: 0 2px 0 0 var(--accent), var(--shadow); }
+  .item.blocker { border-color: var(--red-line); background: var(--red-soft); }
+  .item.blocker .body { color: var(--fg); }
+  .item.stale:not(.blocker) { opacity: .6; border-style: dashed; }
+  .item.stale:not(.blocker):hover, .item.stale:not(.blocker):focus-within { opacity: 1; }
+
+  .body {
+    padding: 10px 12px 8px; cursor: text; min-height: 38px; overflow-wrap: anywhere;
+  }
+  .body > :first-child { margin-top: 0; } .body > :last-child { margin-bottom: 0; }
+  .body p { margin: 0 0 .5em; }
+  .body ul, .body ol { margin: 0 0 .5em; padding-left: 1.3em; }
+  .body h1, .body h2, .body h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.05em; margin: 0 0 .3em; }
+  .body code { font-family: var(--font-mono); font-size: .86em; background: var(--surface-2); padding: 1px 4px; border-radius: 4px; }
+  .item.blocker .body code { background: var(--surface); }
+  .body pre { font-family: var(--font-mono); font-size: .82em; background: var(--surface-2); padding: 8px 10px; border-radius: 6px; overflow-x: auto; margin: 0 0 .5em; }
+  .body pre code { background: none; padding: 0; }
+  .body a { color: var(--accent); }
+  .body blockquote { margin: 0 0 .5em; padding-left: .8em; border-left: 2px solid var(--line); color: var(--fg-2); }
+  .body input[type=checkbox] { margin: 0 .4em 0 0; }
+
+  textarea.edit {
+    display: block; width: 100%; resize: none; border: 0; background: transparent; color: var(--fg);
+    font-family: var(--font-mono); font-size: 13.5px; line-height: 1.5; padding: 10px 12px 8px; outline: none;
+    min-height: 42px; overflow: hidden;
+  }
+
+  .foot {
+    display: flex; align-items: center; gap: 4px; padding: 0 6px 6px 12px; min-height: 26px;
+  }
+  .age { font-size: 11.5px; color: var(--fg-3); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+  .item.stale:not(.blocker) .age { color: var(--fg-2); }
+  .btag {
+    font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--red);
+    background: var(--surface); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--red-line);
+  }
+  .acts { display: flex; gap: 2px; margin-left: auto; opacity: 0; transition: opacity .12s; }
+  .item:hover .acts, .item:focus-within .acts, .item.editing .acts { opacity: 1; }
+  .acts .ib { width: 24px; height: 24px; }
+  .acts .ib svg { width: 14px; height: 14px; }
+  .acts .ib.done:hover { color: var(--accent); background: var(--accent-soft); }
+  .acts .ib.block.on { color: var(--red); }
+  .acts .ib.block:hover { color: var(--red); background: var(--red-soft); }
+
+  /* ---- new stack ---- */
+  .new-stack {
+    flex: 0 0 220px; height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px;
+    border: 1px dashed var(--line); border-radius: 14px; color: var(--fg-2); font-size: 14px;
+    transition: border-color .15s, color .15s, background .15s;
+  }
+  .new-stack:hover { color: var(--fg); border-color: var(--fg-3); background: var(--surface-2); }
+  .new-stack svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; }
+
+  @media (max-width: 560px) {
+    header { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+    #board { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); gap: 12px; }
+    .stack { flex-basis: 84vw; }
+    .meta .hint { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header>
+  <h1>Follow <em>up</em></h1>
+  <div class="meta">
+    <span class="hint"><kbd>n</kbd> push item</span>
+    <span class="hint"><kbd>s</kbd> new stack</span>
+    <span class="hint"><kbd>b</kbd> blocker</span>
+    <span class="hint"><kbd>⌥ ↑↓←→</kbd> move</span>
+  </div>
+  <div class="spacer"></div>
+  <label class="age-ctl">stale after <input id="maxAge" type="number" min="1" max="99" step="1" aria-label="Stale after days"> d</label>
+  <button class="sweep" id="sweep" title="Delete stale items (blockers stay)">Sweep</button>
+</header>
+<main id="board" aria-label="Stacks"></main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  const KEY = 'followup.v1';
+  const DAY = 86400000;
+  const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  const now = () => Date.now();
+
+  /* ---------- state ---------- */
+  let state = load();
+  let focusStackId = state.stacks[0] && state.stacks[0].id;
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s && Array.isArray(s.stacks)) return { maxAgeDays: s.maxAgeDays || 3, stacks: s.stacks };
+      }
+    } catch (e) {}
+    return seed();
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+  function seed() {
+    const t = now();
+    return {
+      maxAgeDays: 3,
+      stacks: [
+        {
+          id: uid(), name: 'How this works', items: [
+            { id: uid(), text: 'Click any card to edit it. **Markdown** works, `code` too.\n\nBlur, `Enter` or `⌘/Ctrl+Enter` saves. `Shift+Enter` makes a new line.', blocker: false, created: t, updated: t },
+            { id: uid(), text: 'New items land on **top** of the stack. Draw from the top when you come back.', blocker: false, created: t, updated: t },
+            { id: uid(), text: 'Waiting for Jan to approve the PR (example blocker)', blocker: true, created: t - 2 * DAY, updated: t - 2 * DAY },
+            { id: uid(), text: 'Items older than *stale after* fade out. **Sweep** deletes them; blockers survive.', blocker: false, created: t - 4 * DAY, updated: t - 4 * DAY },
+            { id: uid(), text: 'Tick ✓ when done. Delete this whole stack with ✕ once you are set.', blocker: false, created: t, updated: t }
+          ]
+        }
+      ]
+    };
+  }
+  function findStack(id) { return state.stacks.find(s => s.id === id); }
+  function findItem(stackId, itemId) {
+    const s = findStack(stackId); if (!s) return null;
+    const i = s.items.findIndex(it => it.id === itemId);
+    return i < 0 ? null : { stack: s, index: i, item: s.items[i] };
+  }
+  function ageDays(it) { return Math.floor((now() - it.created) / DAY); }
+  function isStale(it) { return !it.blocker && ageDays(it) >= state.maxAgeDays; }
+  function ageLabel(it) {
+    const d = ageDays(it);
+    if (d <= 0) return 'today';
+    if (d === 1) return 'yesterday';
+    return d + ' d';
+  }
+
+  /* ---------- markdown ---------- */
+  marked.setOptions({ gfm: true, breaks: true });
+  function render(md) {
+    return DOMPurify.sanitize(marked.parse(md || ''), { USE_PROFILES: { html: true } });
+  }
+
+  /* ---------- icons ---------- */
+  const I = {
+    plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+    check: '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
+    x: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    block: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></svg>',
+    trash: '<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>'
+  };
+
+  /* ---------- DOM ---------- */
+  const board = document.getElementById('board');
+  const maxAgeInput = document.getElementById('maxAge');
+  const sweepBtn = document.getElementById('sweep');
+  let editing = null; // itemId currently in edit mode
+
+  function el(tag, cls, html) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html != null) e.innerHTML = html;
+    return e;
+  }
+
+  function draw() {
+    board.innerHTML = '';
+    for (const s of state.stacks) board.appendChild(drawStack(s));
+    const ns = el('button', 'new-stack', I.plus + '<span>New stack</span>');
+    ns.id = 'newStack';
+    ns.addEventListener('click', addStack);
+    board.appendChild(ns);
+    maxAgeInput.value = state.maxAgeDays;
+    updateSweep();
+  }
+
+  function updateSweep() {
+    const n = state.stacks.reduce((a, s) => a + s.items.filter(isStale).length, 0);
+    sweepBtn.disabled = n === 0;
+    if (!sweepBtn.classList.contains('arm')) sweepBtn.textContent = n ? `Sweep ${n} stale` : 'Nothing stale';
+  }
+
+  function drawStack(s) {
+    const st = el('section', 'stack');
+    st.dataset.id = s.id;
+
+    const head = el('div', 'stack-head');
+    const name = el('h2', 'stack-name');
+    name.textContent = s.name;
+    name.contentEditable = 'true';
+    name.spellcheck = false;
+    name.title = 'Click to rename';
+    name.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); name.blur(); }
+      if (e.key === 'Escape') { name.textContent = s.name; name.blur(); }
+    });
+    name.addEventListener('blur', () => {
+      s.name = name.textContent.trim() || s.name || 'Stack';
+      name.textContent = s.name; save();
+    });
+    name.addEventListener('focus', () => { focusStackId = s.id; });
+
+    const count = el('span', 'count', String(s.items.length));
+    const add = el('button', 'ib', I.plus); add.title = 'Push item (n)';
+    add.addEventListener('click', () => { focusStackId = s.id; addItem(s.id); });
+    const del = el('button', 'ib', I.x); del.title = 'Delete stack';
+    del.addEventListener('click', () => {
+      if (s.items.length === 0 || del.classList.contains('arm')) { removeStack(s.id); return; }
+      del.classList.add('arm'); del.title = 'Click again to delete stack with ' + s.items.length + ' items';
+      setTimeout(() => { del.classList.remove('arm'); del.title = 'Delete stack'; }, 2500);
+    });
+    head.append(name, count, add, del);
+
+    const items = el('div', 'items');
+    items.dataset.id = s.id;
+    for (const it of s.items) items.appendChild(drawItem(s, it));
+
+    // drop target: whole stack
+    st.addEventListener('dragover', e => {
+      if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+      st.classList.add('over');
+    });
+    st.addEventListener('dragleave', e => { if (!st.contains(e.relatedTarget)) st.classList.remove('over'); });
+    st.addEventListener('drop', e => {
+      e.preventDefault(); st.classList.remove('over');
+      if (!drag) return;
+      const target = e.target.closest('.item');
+      let toIndex = s.items.length;
+      if (target && target.dataset.id !== drag.itemId) {
+        const r = target.getBoundingClientRect();
+        const after = e.clientY > r.top + r.height / 2;
+        toIndex = s.items.findIndex(x => x.id === target.dataset.id) + (after ? 1 : 0);
+      } else if (!target) {
+        const r = items.getBoundingClientRect();
+        toIndex = e.clientY < r.top + 20 ? 0 : s.items.length;
+      }
+      moveItem(drag.stackId, drag.itemId, s.id, toIndex);
+      clearDropMarks();
+    });
+    st.addEventListener('click', () => { focusStackId = s.id; });
+
+    st.append(head, items);
+    return st;
+  }
+
+  function drawItem(s, it) {
+    const card = el('article', 'item');
+    card.dataset.id = it.id; card.dataset.stack = s.id;
+    card.tabIndex = 0;
+    if (it.blocker) card.classList.add('blocker');
+    if (isStale(it)) card.classList.add('stale');
+    card.draggable = true;
+
+    const body = el('div', 'body'); body.innerHTML = render(it.text);
+    body.addEventListener('click', e => { if (e.target.tagName !== 'A') startEdit(s.id, it.id); });
+
+    const foot = el('div', 'foot');
+    const age = el('span', 'age', ageLabel(it)); age.title = new Date(it.created).toLocaleString();
+    foot.appendChild(age);
+    if (it.blocker) foot.appendChild(el('span', 'btag', 'blocker'));
+    const acts = el('div', 'acts');
+    const b = el('button', 'ib block' + (it.blocker ? ' on' : ''), I.block); b.title = it.blocker ? 'Unmark blocker (b)' : 'Mark as blocker (b)';
+    b.addEventListener('click', e => { e.stopPropagation(); toggleBlocker(s.id, it.id); });
+    const d = el('button', 'ib done', I.check); d.title = 'Done, remove (⌘⌫)';
+    d.addEventListener('click', e => { e.stopPropagation(); removeItem(s.id, it.id); });
+    acts.append(b, d);
+    foot.appendChild(acts);
+    card.append(body, foot);
+
+    card.addEventListener('keydown', e => {
+      if (card.classList.contains('editing')) return;
+      if (e.target !== card) return;
+      if (e.key === 'Enter') { e.preventDefault(); startEdit(s.id, it.id); }
+      else if (e.key === 'b') { e.preventDefault(); toggleBlocker(s.id, it.id); }
+      else if ((e.key === 'Backspace' || e.key === 'Delete') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); removeItem(s.id, it.id); }
+      else if (e.altKey && e.key === 'ArrowUp') { e.preventDefault(); nudge(s.id, it.id, -1); }
+      else if (e.altKey && e.key === 'ArrowDown') { e.preventDefault(); nudge(s.id, it.id, 1); }
+      else if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); shift(s.id, it.id, -1); }
+      else if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); shift(s.id, it.id, 1); }
+    });
+    card.addEventListener('focus', () => { focusStackId = s.id; });
+
+    card.addEventListener('dragstart', e => {
+      if (card.classList.contains('editing')) { e.preventDefault(); return; }
+      drag = { stackId: s.id, itemId: it.id };
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', it.text); } catch (x) {}
+      setTimeout(() => card.classList.add('dragging'), 0);
+    });
+    card.addEventListener('dragend', () => { drag = null; card.classList.remove('dragging'); clearDropMarks(); board.querySelectorAll('.stack.over').forEach(x => x.classList.remove('over')); });
+    card.addEventListener('dragover', e => {
+      if (!drag || drag.itemId === it.id) return;
+      e.preventDefault();
+      const r = card.getBoundingClientRect();
+      const after = e.clientY > r.top + r.height / 2;
+      clearDropMarks();
+      card.classList.add(after ? 'drop-after' : 'drop-before');
+    });
+    return card;
+  }
+
+  let drag = null;
+  function clearDropMarks() { board.querySelectorAll('.drop-before,.drop-after').forEach(x => x.classList.remove('drop-before', 'drop-after')); }
+
+  /* ---------- editing ---------- */
+  function startEdit(stackId, itemId, isNew) {
+    if (editing && editing !== itemId) commitEdit();
+    const f = findItem(stackId, itemId); if (!f) return;
+    const card = board.querySelector(`.item[data-id="${itemId}"]`); if (!card) return;
+    editing = itemId;
+    card.classList.add('editing'); card.draggable = false;
+    const body = card.querySelector('.body');
+    const ta = el('textarea', 'edit');
+    ta.value = f.item.text; ta.spellcheck = false; ta.placeholder = 'What needs following up?';
+    ta.id = 'edit-' + itemId;
+    body.replaceWith(ta);
+    const grow = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+    ta.addEventListener('input', grow);
+    ta.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.preventDefault(); cancelEdit(isNew); }
+      else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
+      else if (e.key === 'b' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); toggleBlocker(stackId, itemId, true); }
+    });
+    ta.addEventListener('blur', () => { if (editing === itemId) commitEdit(); });
+    grow(); ta.focus();
+    if (!isNew) ta.setSelectionRange(ta.value.length, ta.value.length);
+  }
+  function commitEdit() {
+    if (!editing) return;
+    const id = editing; editing = null;
+    const card = board.querySelector(`.item[data-id="${id}"]`); if (!card) return;
+    const ta = card.querySelector('textarea.edit');
+    const f = findItem(card.dataset.stack, id); if (!f) return;
+    const text = ta ? ta.value.trim() : f.item.text;
+    if (!text) { removeItem(f.stack.id, id); return; }
+    if (text !== f.item.text) { f.item.text = text; f.item.updated = now(); save(); }
+    draw();
+    const nc = board.querySelector(`.item[data-id="${id}"]`); if (nc) nc.focus({ preventScroll: true });
+  }
+  function cancelEdit(isNew) {
+    const id = editing; editing = null;
+    const card = board.querySelector(`.item[data-id="${id}"]`);
+    if (isNew && card) { removeItem(card.dataset.stack, id); return; }
+    draw();
+    const nc = board.querySelector(`.item[data-id="${id}"]`); if (nc) nc.focus({ preventScroll: true });
+  }
+
+  /* ---------- mutations ---------- */
+  function addItem(stackId) {
+    const s = findStack(stackId) || state.stacks[0]; if (!s) { addStack(); return; }
+    if (editing) commitEdit();
+    const it = { id: uid(), text: '', blocker: false, created: now(), updated: now() };
+    s.items.unshift(it); save(); draw();
+    startEdit(s.id, it.id, true);
+  }
+  function removeItem(stackId, itemId) {
+    const f = findItem(stackId, itemId); if (!f) return;
+    if (editing === itemId) editing = null;
+    f.stack.items.splice(f.index, 1); save(); draw();
+  }
+  function toggleBlocker(stackId, itemId, keepEditing) {
+    const f = findItem(stackId, itemId); if (!f) return;
+    f.item.blocker = !f.item.blocker; f.item.updated = now(); save();
+    if (keepEditing) {
+      const card = board.querySelector(`.item[data-id="${itemId}"]`);
+      card.classList.toggle('blocker', f.item.blocker);
+      card.querySelector('.block').classList.toggle('on', f.item.blocker);
+      return;
+    }
+    draw();
+    const nc = board.querySelector(`.item[data-id="${itemId}"]`); if (nc) nc.focus({ preventScroll: true });
+  }
+  function moveItem(fromStackId, itemId, toStackId, toIndex) {
+    const f = findItem(fromStackId, itemId); if (!f) return;
+    const to = findStack(toStackId); if (!to) return;
+    f.stack.items.splice(f.index, 1);
+    if (f.stack === to && f.index < toIndex) toIndex--;
+    toIndex = Math.max(0, Math.min(toIndex, to.items.length));
+    to.items.splice(toIndex, 0, f.item);
+    save(); draw();
+    const nc = board.querySelector(`.item[data-id="${itemId}"]`); if (nc) nc.focus({ preventScroll: true });
+  }
+  function nudge(stackId, itemId, dir) {
+    const f = findItem(stackId, itemId); if (!f) return;
+    const ni = f.index + dir; if (ni < 0 || ni >= f.stack.items.length) return;
+    moveItem(stackId, itemId, stackId, dir > 0 ? ni + 1 : ni);
+  }
+  function shift(stackId, itemId, dir) {
+    const si = state.stacks.findIndex(s => s.id === stackId);
+    const to = state.stacks[si + dir]; if (!to) return;
+    moveItem(stackId, itemId, to.id, 0);
+  }
+  function addStack() {
+    if (editing) commitEdit();
+    const s = { id: uid(), name: '', items: [] };
+    state.stacks.push(s); focusStackId = s.id; save(); draw();
+    const n = board.querySelector(`.stack[data-id="${s.id}"] .stack-name`);
+    if (n) { n.scrollIntoView({ inline: 'nearest', block: 'nearest' }); n.focus(); }
+  }
+  function removeStack(id) {
+    state.stacks = state.stacks.filter(s => s.id !== id);
+    if (focusStackId === id) focusStackId = state.stacks[0] && state.stacks[0].id;
+    save(); draw();
+  }
+  function sweep() {
+    for (const s of state.stacks) s.items = s.items.filter(it => !isStale(it));
+    save(); draw();
+  }
+
+  /* ---------- header controls ---------- */
+  maxAgeInput.addEventListener('change', () => {
+    const v = parseInt(maxAgeInput.value, 10);
+    state.maxAgeDays = isNaN(v) || v < 1 ? 1 : Math.min(v, 99);
+    save(); draw();
+  });
+  sweepBtn.addEventListener('click', () => {
+    if (sweepBtn.classList.contains('arm')) { sweepBtn.classList.remove('arm'); sweep(); return; }
+    sweepBtn.classList.add('arm'); sweepBtn.textContent = 'Really delete?';
+    setTimeout(() => { sweepBtn.classList.remove('arm'); updateSweep(); }, 2500);
+  });
+
+  /* ---------- global keys ---------- */
+  document.addEventListener('keydown', e => {
+    const t = e.target;
+    const typing = t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable);
+    if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'n') { e.preventDefault(); addItem(focusStackId); }
+    else if (e.key === 's') { e.preventDefault(); addStack(); }
+  });
+
+  // re-evaluate ages when the tab regains focus (new day)
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && !editing) draw(); });
+
+  draw();
+})();
+</script>
