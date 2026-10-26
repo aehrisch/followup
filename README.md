@@ -15,7 +15,7 @@ It is not a todo list. Items are expected to live for hours or days, not weeks. 
 - **Blockers** (`b` on a focused card, `⌘/Ctrl+B` while editing) are red and mark that you are waiting for something external. They are never swept.
 - **Reorder** by drag and drop, or `Alt+Arrows` on a focused card (up/down within a stack, left/right across stacks).
 - **Age**: every card shows how old it is. Items older than the *stale after* threshold fade out. *Sweep* deletes them after a confirming second click.
-- `✓` marks an item done and removes it. There is no archive by design.
+- `✓` (or `⌘⌫` / `Ctrl+Backspace` on a selected card) marks an item done and removes it. The last 20 finished items show in a scrolling row at the bottom (newest left); older ones are dropped. Double-click one (or `Enter`) to put it back on top of its stack. Sweep and deleted stacks don't land there.
 
 ## Running it
 
@@ -45,6 +45,9 @@ Fonts (Fraunces, Figtree, JetBrains Mono) come from Google Fonts with system fal
         { "id": "…", "text": "markdown", "blocker": false, "created": 1761500000000, "updated": 1761500000000 }
       ]
     }
+  ],
+  "done": [
+    { "…item fields": "…", "stack": "Context A", "stackId": "…", "finished": 1761600000000 }
   ]
 }
 ```
