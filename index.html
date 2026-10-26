@@ -1,3 +1,5 @@
+<!doctype html>
+<meta charset="utf-8">
 <title>Follow Up</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -208,7 +210,7 @@
   <div class="meta">
     <span class="hint"><kbd>n</kbd> push item</span>
     <span class="hint"><kbd>s</kbd> new stack</span>
-    <span class="hint"><kbd>b</kbd> blocker</span>
+    <span class="hint"><kbd>b</kbd> mark blocker</span>
     <span class="hint"><kbd>⌥ ↑↓←→</kbd> move</span>
   </div>
   <div class="spacer"></div>
@@ -277,9 +279,13 @@
   }
 
   /* ---------- markdown ---------- */
-  marked.setOptions({ gfm: true, breaks: true });
+  // CDN unreachable: fall back to escaped plain text rather than unsanitised HTML
+  const hasMd = !!(window.marked && window.DOMPurify);
+  if (hasMd) marked.setOptions({ gfm: true, breaks: true });
   function render(md) {
-    return DOMPurify.sanitize(marked.parse(md || ''), { USE_PROFILES: { html: true } });
+    if (hasMd) return DOMPurify.sanitize(marked.parse(md || ''), { USE_PROFILES: { html: true } });
+    const d = document.createElement('div'); d.textContent = md || '';
+    return d.innerHTML.replace(/\n/g, '<br>');
   }
 
   /* ---------- icons ---------- */
@@ -401,10 +407,12 @@
     if (it.blocker) foot.appendChild(el('span', 'btag', 'blocker'));
     const acts = el('div', 'acts');
     const b = el('button', 'ib block' + (it.blocker ? ' on' : ''), I.block); b.title = it.blocker ? 'Unmark blocker (b)' : 'Mark as blocker (b)';
-    b.addEventListener('click', e => { e.stopPropagation(); toggleBlocker(s.id, it.id); });
+    b.addEventListener('click', e => { e.stopPropagation(); toggleBlocker(s.id, it.id, editing === it.id); });
     const d = el('button', 'ib done', I.check); d.title = 'Done, remove (⌘⌫)';
     d.addEventListener('click', e => { e.stopPropagation(); removeItem(s.id, it.id); });
     acts.append(b, d);
+    // keep the textarea focused so its blur-commit doesn't redraw the buttons away mid-click
+    acts.addEventListener('mousedown', e => e.preventDefault());
     foot.appendChild(acts);
     card.append(body, foot);
 
