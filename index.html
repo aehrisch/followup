@@ -104,6 +104,8 @@
     border-radius: 14px; background: var(--surface-2);
     transition: box-shadow .15s;
   }
+  .stack.current { box-shadow: inset 0 0 0 1px var(--accent); }
+  .stack.current .count { color: var(--accent); }
   .stack.over { box-shadow: inset 0 0 0 2px var(--accent); }
   .stack-head {
     display: flex; align-items: center; gap: 6px; padding: 10px 10px 6px 14px;
@@ -148,6 +150,8 @@
   .item.blocker .body { color: var(--fg); }
   .item.stale:not(.blocker) { opacity: .6; border-style: dashed; }
   .item.stale:not(.blocker):hover, .item.stale:not(.blocker):focus-within { opacity: 1; }
+  /* :focus, not :focus-visible, so a card focused by mouse or after editing is marked too */
+  .item:focus, .item.editing { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow); }
 
   .body {
     padding: 10px 12px 8px; cursor: text; min-height: 38px; overflow-wrap: anywhere;
@@ -211,6 +215,7 @@
     <span class="hint"><kbd>n</kbd> push item</span>
     <span class="hint"><kbd>s</kbd> new stack</span>
     <span class="hint"><kbd>b</kbd> mark blocker</span>
+    <span class="hint"><kbd>↑↓←→</kbd> select</span>
     <span class="hint"><kbd>⌥ ↑↓←→</kbd> move</span>
   </div>
   <div class="spacer"></div>
@@ -345,7 +350,7 @@
       s.name = name.textContent.trim() || s.name || 'Stack';
       name.textContent = s.name; save();
     });
-    name.addEventListener('focus', () => { focusStackId = s.id; });
+    name.addEventListener('focus', () => setCurrent(s.id));
 
     const count = el('span', 'count', String(s.items.length));
     const add = el('button', 'ib', I.plus); add.title = 'Push item (n)';
@@ -384,7 +389,8 @@
       moveItem(drag.stackId, drag.itemId, s.id, toIndex);
       clearDropMarks();
     });
-    st.addEventListener('click', () => { focusStackId = s.id; });
+    st.addEventListener('click', () => setCurrent(s.id));
+    if (s.id === focusStackId) st.classList.add('current');
 
     st.append(head, items);
     return st;
@@ -426,8 +432,12 @@
       else if (e.altKey && e.key === 'ArrowDown') { e.preventDefault(); nudge(s.id, it.id, 1); }
       else if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); shift(s.id, it.id, -1); }
       else if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); shift(s.id, it.id, 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); select(s.id, it.id, 0, -1); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); select(s.id, it.id, 0, 1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); select(s.id, it.id, -1, 0); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); select(s.id, it.id, 1, 0); }
     });
-    card.addEventListener('focus', () => { focusStackId = s.id; });
+    card.addEventListener('focus', () => setCurrent(s.id));
 
     card.addEventListener('dragstart', e => {
       if (card.classList.contains('editing')) { e.preventDefault(); return; }
@@ -446,6 +456,23 @@
       card.classList.add(after ? 'drop-after' : 'drop-before');
     });
     return card;
+  }
+
+  function setCurrent(id) {
+    focusStackId = id;
+    board.querySelectorAll('.stack').forEach(x => x.classList.toggle('current', x.dataset.id === id));
+  }
+  function focusCard(stackIndex, itemIndex) {
+    const s = state.stacks[stackIndex]; if (!s || !s.items.length) return;
+    const it = s.items[Math.max(0, Math.min(itemIndex, s.items.length - 1))];
+    const c = board.querySelector(`.item[data-id="${it.id}"]`); if (c) c.focus();
+  }
+  // move focus to the neighbouring card; sideways skips empty stacks and keeps the row
+  function select(stackId, itemId, dx, dy) {
+    const si = state.stacks.findIndex(s => s.id === stackId);
+    const f = findItem(stackId, itemId); if (!f) return;
+    if (dy) return focusCard(si, f.index + dy);
+    for (let j = si + dx; state.stacks[j]; j += dx) if (state.stacks[j].items.length) return focusCard(j, f.index);
   }
 
   let drag = null;
@@ -575,6 +602,9 @@
     if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === 'n') { e.preventDefault(); addItem(focusStackId); }
     else if (e.key === 's') { e.preventDefault(); addStack(); }
+    else if (e.key.startsWith('Arrow') && t === document.body) {
+      e.preventDefault(); focusCard(state.stacks.findIndex(s => s.id === focusStackId), 0);
+    }
   });
 
   // re-evaluate ages when the tab regains focus (new day)
