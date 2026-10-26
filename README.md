@@ -11,7 +11,7 @@ It is not a todo list. Items are expected to live for hours or days, not weeks. 
 - Several **stacks** side by side, one per context. Create with `s`, rename by clicking the name.
 - **Items** are Markdown. Click to edit, blur or `Enter` to render. `Shift+Enter` inserts a newline, `Esc` cancels.
 - New items are pushed on **top** (LIFO). `n` pushes onto the stack you last touched.
-- **Blockers** (`b`) are red and mark that you are waiting for something external. They are never swept.
+- **Blockers** (`b` on a focused card, `⌘/Ctrl+B` while editing) are red and mark that you are waiting for something external. They are never swept.
 - **Reorder** by drag and drop, or `Alt+Arrows` on a focused card (up/down within a stack, left/right across stacks).
 - **Age**: every card shows how old it is. Items older than the *stale after* threshold fade out. *Sweep* deletes them after a confirming second click.
 - `✓` marks an item done and removes it. There is no archive by design.
