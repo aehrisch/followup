@@ -81,13 +81,13 @@
     border: 1px solid var(--line); border-radius: 6px; padding: 2px 4px;
     font-variant-numeric: tabular-nums;
   }
-  .sweep {
+  .pill {
     font-size: 13px; color: var(--fg-2); padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px;
     transition: color .15s, border-color .15s, background .15s;
   }
-  .sweep:hover { color: var(--fg); border-color: var(--fg-3); }
-  .sweep.arm { color: var(--red); border-color: var(--red-line); background: var(--red-soft); }
-  .sweep[disabled] { opacity: .45; cursor: default; }
+  .pill:hover { color: var(--fg); border-color: var(--fg-3); }
+  .pill.arm { color: var(--red); border-color: var(--red-line); background: var(--red-soft); }
+  .pill[disabled] { opacity: .45; cursor: default; }
 
   /* ---- board ---- */
   #board {
@@ -246,7 +246,10 @@
   </div>
   <div class="spacer"></div>
   <label class="age-ctl">stale after <input id="maxAge" type="number" min="1" max="99" step="1" aria-label="Stale after days"> d</label>
-  <button class="sweep" id="sweep" title="Delete stale items (blockers stay)">Sweep</button>
+  <button class="pill" id="sweep" title="Delete stale items (blockers stay)">Sweep</button>
+  <button class="pill" id="export" title="Download everything as a Markdown file">Export</button>
+  <button class="pill" id="import" title="Replace everything with a Markdown export">Import</button>
+  <input type="file" id="importFile" accept=".md,.markdown,text/markdown,text/plain" hidden>
 </header>
 <main id="board" aria-label="Stacks"></main>
 <section id="done" aria-labelledby="doneTitle">
@@ -654,6 +657,125 @@
     for (const s of state.stacks) s.items = s.items.filter(it => !isStale(it));
     save(); draw();
   }
+
+  /* ---------- export / import (Markdown) ----------
+     # Stacks / ## <stack> / ### Item n, then ## Other / ### Recently Closed / #### Item n.
+     Metadata sits in an HTML comment line "followup {json}" under a heading. Item lines starting
+     with "#" get one extra leading "\" so they can't be read as structure; import strips it.
+     (\x3C and \x3E spell < and > so no literal comment markers appear inside this script.) */
+  const META = /^\x3C!--\s*followup\s+(\{.*\})\s*--\x3E\s*$/;
+  const cleanName = n => (n || '').replace(/\s+/g, ' ').trim() || 'Stack';
+
+  function toMarkdown(st) {
+    const meta = o => '\x3C!-- followup ' + JSON.stringify(o).replace(/>/g, '\\u003e') + ' --\x3E';
+    const iso = t => new Date(t || now()).toISOString();
+    const out = ['# Stacks', meta({ maxAgeDays: st.maxAgeDays }), ''];
+    const item = (h, it, i, extra) => out.push(`${h} Item ${i + 1}`,
+      meta({ blocker: !!it.blocker, created: iso(it.created), updated: iso(it.updated), ...extra }), '',
+      it.text.split('\n').map(l => l.replace(/^(\\*#)/, '\\$1')).join('\n'), '');
+    for (const s of st.stacks) {
+      out.push('## ' + cleanName(s.name), '');
+      s.items.forEach((it, i) => item('###', it, i));
+    }
+    out.push('## Other', '', '### Recently Closed', '');
+    st.done.forEach((d, i) => item('####', d, i, { stack: d.stack, finished: iso(d.finished) }));
+    return out.join('\n');
+  }
+
+  // throws "Line n: …" on anything it does not understand; never touches state
+  function fromMarkdown(md) {
+    const fail = (n, msg) => { throw new Error(`Line ${n}: ${msg}`); };
+    const parseMeta = (line, n) => {
+      try {
+        const o = JSON.parse(line.match(META)[1]);
+        if (o && typeof o === 'object' && !Array.isArray(o)) return o;
+      } catch (e) {}
+      fail(n, 'unreadable followup metadata');
+    };
+    const out = { maxAgeDays: 3, stacks: [], done: [] };
+    const pending = []; // items, finalised once all their lines are collected
+    let started = false, closed = false, stack = null, item = null;
+
+    md.replace(/\r\n?/g, '\n').split('\n').forEach((line, i) => {
+      const n = i + 1;
+      const h = line.match(/^(#{1,6})(?:[ \t]+(.*?))?[ \t]*$/);
+      if (!h) {
+        if (item) item.lines.push(line);
+        else if (started && !stack && !closed && META.test(line)) {
+          const v = parseMeta(line, n).maxAgeDays;
+          if (v !== undefined && !(Number.isInteger(v) && v >= 1 && v <= 99)) fail(n, 'maxAgeDays must be 1 to 99');
+          if (v !== undefined) out.maxAgeDays = v;
+        }
+        else if (line.trim()) fail(n, started ? 'text outside an item' : 'expected "# Stacks" first; is this a Follow Up export?');
+        return;
+      }
+      const level = h[1].length, title = (h[2] || '').trim();
+      item = null;
+      if (!started) {
+        if (level === 1 && title === 'Stacks') { started = true; return; }
+        fail(n, 'expected "# Stacks" as the first heading; is this a Follow Up export?');
+      }
+      if (level === 2 && !closed) {
+        stack = { id: uid(), name: cleanName(title), items: [] }; out.stacks.push(stack);
+      } else if (level === 3 && stack && stack.name === 'Other' && title === 'Recently Closed' && !pending.some(p => p.list === stack.items)) {
+        out.stacks.pop(); stack = null; closed = true; // "## Other" was the section, not a stack
+      } else if (level === 3 && stack && !closed) {
+        item = { n, lines: [], list: stack.items }; pending.push(item);
+      } else if (level === 4 && closed) {
+        item = { n, lines: [], list: out.done, done: true }; pending.push(item);
+      } else fail(n, `unexpected heading "${line.trim()}"`);
+    });
+    if (!started) fail(1, 'no "# Stacks" heading; is this a Follow Up export?');
+
+    for (const p of pending) {
+      const k = p.lines.findIndex(l => l.trim());
+      const m = k >= 0 && META.test(p.lines[k]) ? parseMeta(p.lines.splice(k, 1)[0], p.n + 1 + k) : {};
+      const text = p.lines.map(l => l.replace(/^\\(\\*#)/, '$1')).join('\n').trim();
+      if (!text) fail(p.n, 'item has no text');
+      const ts = (v, name) => {
+        if (v == null) return now();
+        const t = Date.parse(v); if (isNaN(t)) fail(p.n, `bad ${name} date "${v}"`);
+        return t;
+      };
+      const it = { id: uid(), text, blocker: m.blocker === true, created: ts(m.created, 'created'), updated: ts(m.updated, 'updated') };
+      if (p.done) Object.assign(it, { stack: String(m.stack || 'Stack'), finished: ts(m.finished, 'finished') });
+      p.list.push(it);
+    }
+    out.done = out.done.slice(0, DONE_MAX);
+    return out;
+  }
+
+  // what an export must preserve; compared after a round trip before every download
+  const signature = st => JSON.stringify([st.maxAgeDays,
+    st.stacks.map(s => [cleanName(s.name), s.items.map(i => [i.text, !!i.blocker, i.created, i.updated])]),
+    st.done.map(d => [d.text, !!d.blocker, d.created, d.updated, String(d.stack || 'Stack'), d.finished])]);
+
+  function exportMarkdown() {
+    if (editing) commitEdit();
+    const md = toMarkdown(state);
+    try { if (signature(fromMarkdown(md)) !== signature(state)) throw new Error('re-import differs from the board'); }
+    catch (e) { alert('Export aborted, the file would not import cleanly.\n\n' + e.message); return; }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([md], { type: 'text/markdown' }));
+    a.download = `followup-${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  const importFile = document.getElementById('importFile');
+  document.getElementById('export').addEventListener('click', exportMarkdown);
+  document.getElementById('import').addEventListener('click', () => importFile.click());
+  importFile.addEventListener('change', async () => {
+    const f = importFile.files[0]; importFile.value = ''; if (!f) return;
+    let next;
+    try { next = fromMarkdown(await f.text()); }
+    catch (e) { alert(`Import failed, nothing was changed.\n\n${f.name}: ${e.message}`); return; }
+    const items = next.stacks.reduce((a, s) => a + s.items.length, 0);
+    if (!confirm(`Replace everything with ${f.name}?\n\n${next.stacks.length} stacks, ${items} items, ${next.done.length} recently closed.`)) return;
+    editing = null;
+    state = next; focusStackId = state.stacks[0] && state.stacks[0].id;
+    save(); draw();
+  });
 
   /* ---------- header controls ---------- */
   maxAgeInput.addEventListener('change', () => {

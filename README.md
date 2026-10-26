@@ -52,6 +52,39 @@ Fonts (Fraunces, Figtree, JetBrains Mono) come from Google Fonts with system fal
 }
 ```
 
+## Export / import
+
+**Export** downloads everything (stacks, items, recently closed, the *stale after* setting) as `followup-YYYY-MM-DD.md`. Before downloading, the file is re-imported in memory and compared with the board; if anything would be lost, the export is aborted with an error.
+
+**Import** reads such a file and, after a confirmation, replaces the whole board. If the file cannot be parsed, an error names the line and nothing changes.
+
+```markdown
+# Stacks
+<!-- followup {"maxAgeDays":3} -->
+
+## Context A
+
+### Item 1
+<!-- followup {"blocker":false,"created":"2026-10-26T09:12:33.123Z","updated":"2026-10-26T09:12:33.123Z"} -->
+
+The item text, as Markdown.
+
+## Other
+
+### Recently Closed
+
+#### Item 1
+<!-- followup {"blocker":false,"created":"…","updated":"…","stack":"Context A","finished":"…"} -->
+
+A finished item.
+```
+
+- Item headings (`Item 1`, …) are labels only; the text below them is the item.
+- `## Other` followed by `### Recently Closed` is the closed section; a stack may still be called *Other*.
+- Lines of item text that start with `#` are written with one extra leading `\`, so they cannot be mistaken for structure; import removes it.
+- The `followup` comments are optional when writing a file by hand. Missing dates default to now, `blocker` to false. Any other heading level or text outside an item is an error.
+- Ids are regenerated on import. Restoring a closed item matches its stack by name.
+
 ## Roadmap
 
-Iterated as needed. Candidates: export/import as a Markdown file, a global capture shortcut, a tiny always-on-top window.
+Iterated as needed. Candidates: a global capture shortcut, a tiny always-on-top window.
